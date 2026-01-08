@@ -37,8 +37,8 @@ export function Recommendations() {
     try {
       const result = await getRecommendations(query);
       const recs: ApiRecommendation[] = Array.isArray(result)
-        ? result
-        : result?.recommendations ?? [];
+       ? result
+       : result.recommendations ?? [];
 
       const ids = recs
         .map((r) => String(r.bookId ?? r.id ?? '').trim())

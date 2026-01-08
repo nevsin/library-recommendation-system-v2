@@ -3,12 +3,20 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-async function handleResponse<T>(res: Response): Promise<T> {
+async function handleResponse<T = any>(res: Response): Promise<T> {
+  const text = await res.text();
+
   if (!res.ok) {
-    const text = await res.text();
     throw new Error(text || `API request failed (${res.status})`);
   }
-  return res.json();
+
+  if (!text) return undefined as T;
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as unknown as T;
+  }
 }
 
 async function getIdToken(): Promise<string | null> {
@@ -32,40 +40,60 @@ async function getAuthHeadersOrThrow() {
   };
 }
 
-/* ============ PUBLIC ============ */
-
 export async function getBooks(): Promise<Book[]> {
   const res = await fetch(`${API_BASE_URL}/books`);
   return handleResponse<Book[]>(res);
 }
 
 export async function getBook(id: string): Promise<Book | null> {
-  const res = await fetch(`${API_BASE_URL}/books/${id}`);
+  const res = await fetch(`${API_BASE_URL}/books/${encodeURIComponent(id)}`);
   if (!res.ok) return null;
 
-  const data = await res.json();
+  const data: any = await handleResponse(res);
 
   if (Array.isArray(data)) {
     return data.find((b: Book) => b.id === id) ?? null;
   }
 
-  return data;
+  return data as Book;
 }
 
-/* ============ PROTECTED (needs token) ============ */
-
-export async function getRecommendations(query: string) {
+export async function getRecommendations(query: string): Promise<any> {
   const headers = await getAuthHeadersOrThrow();
+
   const res = await fetch(`${API_BASE_URL}/recommendations`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ query }),
   });
-  return handleResponse(res);
+
+  const data: any = await handleResponse(res);
+
+  if (Array.isArray(data)) return data;
+
+  if (Array.isArray(data?.recommendations)) return data;
+
+  if (typeof data?.body === 'string') {
+    try {
+      return JSON.parse(data.body);
+    } catch {
+      return { recommendations: [] };
+    }
+  }
+
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data);
+    } catch {
+      return { recommendations: [] };
+    }
+  }
+
+  return { recommendations: [] };
 }
 
 export async function getReadingLists(userId: string) {
-  const headers = await getAuthHeadersOrThrow(); // sende hangi helper varsa o
+  const headers = await getAuthHeadersOrThrow();
   const url = `${API_BASE_URL}/reading-lists?userId=${encodeURIComponent(userId)}`;
 
   const res = await fetch(url, { headers });
@@ -108,8 +136,9 @@ export async function deleteReadingList(id: string, userId: string) {
   return handleResponse(res);
 }
 
-/* Admin endpoints (if protected) */
-export async function createBook(payload: Book) {
+export type CreateBookPayload = Omit<Book, 'id'>;
+
+export async function createBook(payload: CreateBookPayload) {
   const headers = await getAuthHeadersOrThrow();
   const res = await fetch(`${API_BASE_URL}/books`, {
     method: 'POST',
@@ -138,7 +167,6 @@ export async function deleteBook(id: string) {
   return handleResponse(res);
 }
 
-/* Add-to-list: use createReadingList for now (backend expects userId/name/bookIds) */
 export async function addToReadingList(userId: string, bookId: string) {
   return createReadingList({
     userId,

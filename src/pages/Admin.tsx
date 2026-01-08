@@ -1,13 +1,7 @@
 import { useState } from 'react';
 import { createBook } from '@/services/api';
-import { Book } from '@/types';
+import type { Book } from '@/types';
 
-/**
- * Admin Dashboard Page
- *
- * - Accessible only by admin users
- * - Create Book functionality
- */
 export function Admin() {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -28,11 +22,15 @@ export function Admin() {
 
     setLoading(true);
     try {
-      // Sadece gerekli alanları göndermek için Partial kullandık
-      const newBook: Partial<Omit<Book, 'id'>> = {
+      const newBook: Omit<Book, 'id'> = {
         title,
         author,
         description,
+        genre: 'Unknown',
+        coverImage: '',
+        rating: 0,
+        publishedYear: new Date().getFullYear(),
+        isbn: '',
       };
 
       await createBook(newBook);
@@ -59,7 +57,6 @@ export function Admin() {
         library resources and configure system features.
       </p>
 
-      {/* CREATE BOOK */}
       <div className="glass-effect p-6 rounded-2xl border max-w-xl">
         <h2 className="text-xl font-semibold mb-4">📚 Create New Book</h2>
 

@@ -54,12 +54,12 @@ export function ReadingLists() {
     }
 
     try {
-      const created = await createReadingList({
-        userId: user.id,
-        name: newListName.trim(),
-        bookIds: [],
-        description: newListDescription.trim(),
-      } as any);
+      await createReadingList({
+    userId: user.id,
+    name: newListName.trim(),
+    bookIds: [],
+    description: newListDescription.trim(),
+  } as any);
 
       setIsModalOpen(false);
       setNewListName('');
