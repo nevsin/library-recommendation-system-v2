@@ -23,11 +23,11 @@ export function Home() {
 
         <div className="container mx-auto text-center relative z-10">
           <div className="inline-block mb-6 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
-            <span className="text-sm font-semibold text-white">✨ Powered by AI </span>
+            <span className="text-sm font-semibold text-white">✨ Powered by AI (CI/CD test)</span>
           </div>
 
           <h1 className="text-6xl md:text-8xl font-extrabold mb-6 text-white leading-tight tracking-tight">
-            Discover Your Next
+            Discover Your Next 📚
             <br />
             <span className="bg-gradient-to-r from-violet-300 via-pink-300 to-indigo-300 bg-clip-text text-transparent">
               Favorite Book
