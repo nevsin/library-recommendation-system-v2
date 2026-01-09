@@ -1,8 +1,18 @@
 import { Book } from '@/types';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+/* ==============================
+   API BASE
+================================ */
+const API_URL = import.meta.env.VITE_API_URL;
 
+if (!API_URL) {
+  throw new Error('API_URL is not defined');
+}
+
+/* ==============================
+   HELPERS
+================================ */
 async function handleResponse<T = any>(res: Response): Promise<T> {
   const text = await res.text();
 
@@ -22,8 +32,7 @@ async function handleResponse<T = any>(res: Response): Promise<T> {
 async function getIdToken(): Promise<string | null> {
   try {
     const session = await fetchAuthSession();
-    const token = session.tokens?.idToken?.toString();
-    return token ?? null;
+    return session.tokens?.idToken?.toString() ?? null;
   } catch {
     return null;
   }
@@ -34,69 +43,51 @@ async function getAuthHeadersOrThrow() {
   if (!token) {
     throw new Error('Not authenticated');
   }
+
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
   };
 }
 
+/* ==============================
+   BOOKS
+================================ */
 export async function getBooks(): Promise<Book[]> {
-  const res = await fetch(`${API_BASE_URL}/books`);
+  const res = await fetch(`${API_URL}/books`);
   return handleResponse<Book[]>(res);
 }
 
 export async function getBook(id: string): Promise<Book | null> {
-  const res = await fetch(`${API_BASE_URL}/books/${encodeURIComponent(id)}`);
+  const res = await fetch(`${API_URL}/books/${encodeURIComponent(id)}`);
   if (!res.ok) return null;
-
-  const data: any = await handleResponse(res);
-
-  if (Array.isArray(data)) {
-    return data.find((b: Book) => b.id === id) ?? null;
-  }
-
-  return data as Book;
+  return handleResponse<Book>(res);
 }
 
+/* ==============================
+   AI RECOMMENDATIONS
+================================ */
 export async function getRecommendations(query: string): Promise<any> {
   const headers = await getAuthHeadersOrThrow();
 
-  const res = await fetch(`${API_BASE_URL}/recommendations`, {
+  const res = await fetch(`${API_URL}/recommendations`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ query }),
   });
 
-  const data: any = await handleResponse(res);
-
-  if (Array.isArray(data)) return data;
-
-  if (Array.isArray(data?.recommendations)) return data;
-
-  if (typeof data?.body === 'string') {
-    try {
-      return JSON.parse(data.body);
-    } catch {
-      return { recommendations: [] };
-    }
-  }
-
-  if (typeof data === 'string') {
-    try {
-      return JSON.parse(data);
-    } catch {
-      return { recommendations: [] };
-    }
-  }
-
-  return { recommendations: [] };
+  return handleResponse(res);
 }
 
+/* ==============================
+   READING LISTS
+================================ */
 export async function getReadingLists(userId: string) {
   const headers = await getAuthHeadersOrThrow();
-  const url = `${API_BASE_URL}/reading-lists?userId=${encodeURIComponent(userId)}`;
-
-  const res = await fetch(url, { headers });
+  const res = await fetch(
+    `${API_URL}/reading-lists?userId=${encodeURIComponent(userId)}`,
+    { headers }
+  );
   return handleResponse(res);
 }
 
@@ -106,7 +97,7 @@ export async function createReadingList(payload: {
   bookIds?: string[];
 }) {
   const headers = await getAuthHeadersOrThrow();
-  const res = await fetch(`${API_BASE_URL}/reading-lists`, {
+  const res = await fetch(`${API_URL}/reading-lists`, {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
@@ -119,7 +110,7 @@ export async function updateReadingList(
   payload: { userId: string; name?: string; bookIds?: string[] }
 ) {
   const headers = await getAuthHeadersOrThrow();
-  const res = await fetch(`${API_BASE_URL}/reading-lists/${encodeURIComponent(id)}`, {
+  const res = await fetch(`${API_URL}/reading-lists/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers,
     body: JSON.stringify(payload),
@@ -130,17 +121,20 @@ export async function updateReadingList(
 export async function deleteReadingList(id: string, userId: string) {
   const headers = await getAuthHeadersOrThrow();
   const res = await fetch(
-    `${API_BASE_URL}/reading-lists/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`,
+    `${API_URL}/reading-lists/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`,
     { method: 'DELETE', headers }
   );
   return handleResponse(res);
 }
 
+/* ==============================
+   BOOK CRUD
+================================ */
 export type CreateBookPayload = Omit<Book, 'id'>;
 
 export async function createBook(payload: CreateBookPayload) {
   const headers = await getAuthHeadersOrThrow();
-  const res = await fetch(`${API_BASE_URL}/books`, {
+  const res = await fetch(`${API_URL}/books`, {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
@@ -150,7 +144,7 @@ export async function createBook(payload: CreateBookPayload) {
 
 export async function updateBook(id: string, payload: Partial<Book>) {
   const headers = await getAuthHeadersOrThrow();
-  const res = await fetch(`${API_BASE_URL}/books/${encodeURIComponent(id)}`, {
+  const res = await fetch(`${API_URL}/books/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers,
     body: JSON.stringify(payload),
@@ -160,17 +154,34 @@ export async function updateBook(id: string, payload: Partial<Book>) {
 
 export async function deleteBook(id: string) {
   const headers = await getAuthHeadersOrThrow();
-  const res = await fetch(`${API_BASE_URL}/books/${encodeURIComponent(id)}`, {
+  const res = await fetch(`${API_URL}/books/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers,
   });
   return handleResponse(res);
 }
 
-export async function addToReadingList(userId: string, bookId: string) {
-  return createReadingList({
-    userId,
-    name: 'My Reading List',
-    bookIds: [bookId],
+/* ==============================
+   REVIEWS
+================================ */
+export async function createReview(data: {
+  bookId: string;
+  userId: string;
+  username: string;
+  rating: number;
+  comment: string;
+}) {
+  const res = await fetch(`${API_URL}/reviews`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
   });
+
+  if (!res.ok) {
+    throw new Error('Failed to create review');
+  }
+
+  return res.json();
 }

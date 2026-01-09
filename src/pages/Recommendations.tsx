@@ -145,11 +145,21 @@ export function Recommendations() {
                   className="glass-effect rounded-2xl shadow-xl border border-white/20 p-6"
                 >
                   <div className="flex items-start gap-6">
-                    <img
-                      src={book.coverImage}
-                      alt={book.title}
-                      className="w-28 h-40 object-cover rounded-xl shadow-lg"
-                    />
+                   <img
+                    src={
+                     book.coverImage?.startsWith('http')
+                       ? book.coverImage
+                       : book.coverImage?.startsWith('/')
+                         ? `${import.meta.env.VITE_S3_BASE_URL}${book.coverImage}`
+                          : `${import.meta.env.VITE_S3_BASE_URL}/book-covers/${book.coverImage}`
+                     }
+                     alt={book.title}
+                     className="w-28 h-40 object-cover rounded-xl shadow-lg"
+                     onError={(e) => {
+                        e.currentTarget.src = '/no-cover.png';
+                       }}
+                      />
+
                     <div className="flex-1">
                       <h3 className="text-2xl font-bold text-slate-900 mb-2">
                         {book.title}
